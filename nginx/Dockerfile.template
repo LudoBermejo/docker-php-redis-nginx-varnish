@@ -1,0 +1,20 @@
+FROM alpine:latest
+MAINTAINER Ludo Bermejo <LudoBermejo@gmail.com>, domainer
+
+# NGINX
+RUN apk add --update nginx=1.10.1-r1 && \
+    rm -rf /var/cache/apk/* && \
+    rm -rf /etc/nginx/nginx.conf
+
+# NGINX
+RUN apk add --update supervisor
+
+# Copy a configuration file from the current directory
+ADD NGINX_CONF /etc/nginx/
+
+
+ADD etc /etc
+
+EXPOSE 8000
+
+ENTRYPOINT ["supervisord", "--nodaemon", "--configuration", "/etc/supervisord.conf"]

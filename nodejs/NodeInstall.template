@@ -1,0 +1,6 @@
+## Prepare NODEJS server
+RUN rm -rf /var/www/node
+RUN mkdir -p /var/www/node
+RUN GIT_CURL_VERBOSE=1 GIT_TRACE=1 git clone git@bitbucket.org:starzplay/portal_nodejs.git /var/www/node
+RUN (cd /var/www/node && git pull && rm -rf node_modules && npm install)
+

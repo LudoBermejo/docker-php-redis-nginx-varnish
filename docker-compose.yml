@@ -1,0 +1,40 @@
+varnish:
+    build: ./varnish
+    links:
+        - nginx:nginx
+        - php:php
+    ports:
+        - "80:80"
+
+nginx:
+    build: ./nginx
+    links:
+        - php:php
+        - nodejs:nodejs
+        - redis:redis
+    ports:
+        - "8000:8000"
+
+
+php:
+    build: ./nginx-phpfpm
+    links:
+        - redis
+    ports:
+        - "9050:9050"
+    volumes:
+        - /Users/LudoBermejo/code/portal/www/parsifal:/var/www/html
+
+nodejs:
+    build: ./nodejs
+    links:
+        - redis
+    ports:
+        - "9001:9001"
+    volumes:
+        - /Users/LudoBermejo/code/portal_nodejs:/var/www/node
+
+redis:
+    image: redis:alpine
+    ports:
+        - "6379:6379"

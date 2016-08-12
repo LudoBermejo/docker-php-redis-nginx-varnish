@@ -1,0 +1,58 @@
+# Install NODE
+RUN apk add --update --no-cache  \
+    nodejs \
+    git
+
+# build SASS because ALPINE has problems with it. Yes, I know it's annoying but it is what it is
+RUN apk --update add git build-base
+RUN git clone https://github.com/sass/sassc
+RUN (cd sassc && pwd && ls)
+RUN git clone https://github.com/sass/libsass /sassc/libsass
+RUN (cd sassc && SASS_LIBSASS_PATH=/sassc/libsass make)
+RUN (cd sassc && mv bin/sassc /usr/bin/sass)
+RUN (cd / && rm -rf /sassc)
+RUN apk add libstdc++  # sass binary still needs this because of dynamic linking.
+
+# Add keys
+RUN mkdir /root/.ssh/
+ADD keys/bitbucket_portal /root/.ssh/id_rsa
+RUN chmod 0600 /root/.ssh/id_rsa
+
+# Create known_hosts
+RUN touch /root/.ssh/known_hosts
+
+# Add bitbuckets key
+RUN ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
+RUN cat /root/.ssh/known_hosts
+
+RUN rm -rf /var/www/html
+RUN mkdir /var/www/html
+RUN GIT_CURL_VERBOSE=1 GIT_TRACE=1 git clone --depth=1 --branch=feature/redis git@bitbucket.org:starzplay/portal.git /var/www/html
+RUN (rm -rf /var/www/html/.git)
+RUN (cd /var/www/html)
+
+# build node sass (it has problems with alpine so we need this
+RUN export SKIP_SASS_BINARY_DOWNLOAD_FOR_CI=true
+RUN (cd /var/www/html && rm -rf node_modules && npm install)
+
+# COMPOSER
+RUN (cd /var/www/html/src/config && php composer.phar install)
+
+# PHANTOM
+RUN (cd /var/www/html && NODE_ENV='portal' ./node_modules/gulp/bin/gulp.js build-no-tests)
+
+# Prepare perms
+RUN chown -R nginx:nginx /var/www/html
+RUN mkdir -p /var/log/httpd/
+RUN touch /var/log/httpd/debug.log
+RUN touch /var/log/httpd/critical.log
+RUN touch /var/log/httpd/error.log
+RUN touch /var/log/httpd/alert.log
+RUN touch /var/log/httpd/notify.log
+RUN touch /var/log/httpd/emergency.log
+RUN touch /var/log/httpd/warning.log
+RUN touch /var/log/httpd/info.log
+
+RUN sed -i 's/listen = 127.0.0.1:9000/listen = \/var\/run\/php-fpm\/php5-fpm.sock/g' ${fpm_conf} && \
+    sed -i 's/user = nobody/user = nginx/g' ${fpm_conf} && \
+    sed -i 's/group = nobody/group = nginx/g' ${fpm_conf}
